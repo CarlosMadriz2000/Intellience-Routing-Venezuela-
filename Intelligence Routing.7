@@ -1,0 +1,562 @@
+#This Script is easy to use, you can paste all the information you watch in the panels, and the engine start to calculate the most effience route.
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+import json
+import os
+import math
+import random
+from datetime import datetime
+
+# Database file name
+DATA_FILE = "INTELLIGENT_ROUTING (Venezuela).json"
+
+# - CONFIGURATION--
+
+DEFAULT_FLEET = [
+    {"id": "V-01", "type": "Pick-up 150", "cap_kg": 1500, "cap_m3": 4.0, "company": "My own fleet", "status": "available"},
+    {"id": "V-02", "type": "Triton 350", "cap_kg": 3500, "cap_m3": 12.0, "company": "Transports C.A.", "status": "available"},
+    {"id": "V-03", "type": "Camión 750", "cap_kg": 7500, "cap_m3": 25.0, "company": "National C.A.", "status": "available"},
+    {"id": "V-04", "type": "Gandola", "cap_kg": 24000, "cap_m3": 60.0, "company": "Venezuela commerce", "status": "available"}
+]
+
+system_data = {"fleet": DEFAULT_FLEET, "orders": []}
+
+#  GRAPHIC ENGINE (VENEZUELA)
+COORDINATES_MAP = {
+    "Caracas": (470, 220), "Los Teques": (460, 230), "La Guaira": (475, 200), "Charallave": (470, 240),
+    "Cua": (468, 245), "Ocumare Del Tuy": (475, 250), "Santa Teresa": (480, 245), "Guarenas": (490, 225), 
+    "Guatire": (500, 225), "San Antonio De Los Altos": (462, 228), "Carrizal": (461, 229), "Yare": (477, 248), 
+    "Higuerote": (530, 215), "Rio Chico": (540, 220), "Caucagua": (510, 230), "Catia La Mar": (465, 200),
+    "Naiguata": (485, 200), "Caraballeda": (480, 200), "Carayaca": (460, 205),
+    "Valencia": (400, 240), "San Diego": (405, 235), "Guacara": (410, 235), "Mariara": (420, 238),
+    "Puerto Cabello": (400, 210), "Moron": (390, 210), "Bejuma": (380, 245), "Montalban": (375, 245), 
+    "Miranda": (370, 248), "Tocuyito": (398, 245), "Los Guayos": (408, 238), "Maracay": (450, 240), 
+    "Cagua": (455, 245), "Turmero": (452, 242), "La Victoria": (460, 240), "San Mateo": (458, 241), 
+    "Las Tejerias": (465, 238), "Villa De Cura": (450, 255), "San Casimiro": (460, 260), "San Sebastian": (465, 265), 
+    "Barbacoas": (470, 280), "Palo Negro": (452, 246), "Santa Cruz": (454, 244), "Choroni": (450, 210), 
+    "Ocumare De La Costa": (445, 210), "Colonia Tovar": (455, 220), "San Juan De Los Morros": (460, 260), 
+    "El Sombrero": (490, 270), "Valle De La Pascua": (520, 280), "Zaraza": (550, 275), "Calabozo": (480, 320), 
+    "Altagracia De Orituco": (500, 250), "Chaguaramas": (510, 275), "Tucupido": (530, 278), "Ortiz": (470, 280), 
+    "Camaguan": (460, 350), "San Fernando De Apure": (450, 380), "Achaguas": (420, 390), "Guasdualito": (250, 420), 
+    "Elorza": (380, 420), "Mantecal": (400, 410), "Bruzual": (360, 400),
+    "San Cristobal": (150, 350), "Rubio": (140, 360), "La Grita": (160, 330), "San Antonio Del Tachira": (130, 350), 
+    "Ureña": (135, 345), "La Fria": (165, 310), "Coloncito": (170, 315), "Michelena": (155, 340), 
+    "San Juan De Colon": (160, 335), "Táriba": (152, 348), "Abejales": (175, 360), "Merida": (200, 320), 
+    "El Vigia": (190, 310), "Tovar": (180, 325), "Mucuchies": (210, 315), "Timotes": (220, 305), 
+    "Bailadores": (175, 330), "Nueva Bolivia": (225, 295), "Ejido": (195, 322), "Valera": (250, 280), 
+    "Trujillo": (260, 280), "Bocono": (270, 290), "Pampan": (265, 275), "Carache": (275, 270), 
+    "Betijoque": (240, 285), "Sabana De Mendoza": (235, 290), "Escuque": (245, 282), "Barinas": (280, 320), 
+    "Sabaneta": (290, 330), "Socopo": (260, 340), "Santa Barbara De Barinas": (240, 350), "Barrancas": (270, 330),
+    "Coro": (300, 150), "Punto Fijo": (290, 130), "Tucacas": (370, 190), "Chichiriviche": (360, 180), 
+    "Dabajuro": (260, 170), "Churuguara": (310, 190), "Maracaibo": (200, 190), "San Francisco": (200, 195), 
+    "Cabimas": (210, 190), "Ciudad Ojeda": (215, 195), "Mene Grande": (220, 210), "Bachaquero": (218, 205), 
+    "Machiques": (180, 220), "Santa Barbara Del Zulia": (180, 270), "Los Puertos De Altagracia": (205, 185), 
+    "La Villa Del Rosario": (185, 210), "Casigua El Cubo": (160, 280), "Encontrados": (170, 275), 
+    "El Mojan": (195, 170), "Santa Rita": (208, 188), "Tia Juana": (212, 192),
+    "Barquisimeto": (320, 230), "Cabudare": (325, 235), "El Tocuyo": (300, 250), "Carora": (280, 240), 
+    "Quibor": (310, 240), "Sanare": (305, 245), "Duaca": (325, 215), "Siquisique": (315, 200), 
+    "Sarare": (330, 250), "San Felipe": (350, 220), "Chivacoa": (340, 225), "Nirgua": (370, 230), 
+    "Yaritagua": (335, 230), "Aroa": (340, 210), "San Carlos": (350, 260), "Tinaco": (360, 255), 
+    "Tinaquillo": (380, 250), "El Pao": (370, 265), "Guanare": (300, 300), "Acarigua": (320, 280), 
+    "Biscucuy": (280, 295), "Turen": (330, 290), "Ospino": (310, 290), "Piritu (Portuguesa)": (335, 285),
+    "Barcelona": (600, 250), "Puerto La Cruz": (610, 260), "Puerto Piritu": (580, 245), "El Tigre": (620, 320), 
+    "Anaco": (610, 300), "Cantaura": (615, 310), "San Tome": (625, 325), "Clarines": (575, 250), 
+    "Boca De Uchire": (560, 240), "Aragua De Barcelona": (590, 290), "Valle De Guanape": (565, 255), 
+    "Pariaguan": (600, 340), "Porlamar": (660, 180), "Pampatar": (665, 178), "Juan Griego": (655, 170), 
+    "La Asuncion": (662, 175), "Punta De Piedras": (650, 185), "Boca Del Rio": (645, 180), "Cumana": (650, 240), 
+    "Carupano": (680, 220), "Guiria": (720, 210), "Cumanacoa": (655, 255), "Araya": (640, 220), 
+    "Casanay": (670, 230), "Irapa": (710, 215), "Cariaco": (665, 235), "Mariguitar": (655, 235),
+    "Maturin": (700, 280), "Punta De Mata": (680, 285), "Caripito": (710, 270), "Caripe": (690, 260), 
+    "Temblador": (720, 300), "Aguasay": (685, 300), "Caicara De Maturin": (675, 290), "Tucupita": (740, 320), 
+    "Pedernales": (750, 260), "Curiapo": (760, 330), "Puerto Ayacucho": (400, 500), "San Fernando De Atabapo": (380, 560), 
+    "San Juan De Manapiare": (450, 540), "Puerto Ordaz": (680, 400), "San Felix": (685, 400), 
+    "Ciudad Bolivar": (650, 410), "Upata": (690, 420), "Guasipati": (700, 440), "El Callao": (705, 450), 
+    "Tumeremo": (710, 460), "Santa Elena De Uairen": (750, 550), "Caicara Del Orinoco": (550, 450), 
+    "Ciudad Piar": (660, 430), "El Manteco": (695, 435), "Maripa": (600, 440), "Las Claritas": (720, 480), 
+    "El Dorado": (715, 470)
+}
+
+CATEGORIES = {
+    "Capital": ["Caracas", "Los Teques", "La Guaira", "Charallave", "Cua", "Ocumare Del Tuy", "Santa Teresa", "Guarenas", "Guatire", "San Antonio De Los Altos", "Carrizal", "Yare", "Higuerote", "Rio Chico", "Caucagua", "Catia La Mar", "Naiguata", "Caraballeda", "Carayaca"],
+    "Centro": ["Valencia", "San Diego", "Guacara", "Mariara", "Puerto Cabello", "Moron", "Bejuma", "Montalban", "Miranda", "Tocuyito", "Los Guayos", "Maracay", "Cagua", "Turmero", "La Victoria", "San Mateo", "Las Tejerias", "Villa De Cura", "San Casimiro", "San Sebastian", "Barbacoas", "Palo Negro", "Santa Cruz", "Choroni", "Ocumare De La Costa", "Colonia Tovar", "San Juan De Los Morros", "El Sombrero", "Valle De La Pascua", "Zaraza", "Calabozo", "Altagracia De Orituco", "Chaguaramas", "Tucupido", "Ortiz", "Camaguan", "San Fernando De Apure", "Achaguas", "Guasdualito", "Elorza", "Mantecal", "Bruzual"],
+    "Andes": ["San Cristobal", "Rubio", "La Grita", "San Antonio Del Tachira", "Ureña", "La Fria", "Coloncito", "Michelena", "San Juan De Colon", "Táriba", "Abejales", "Merida", "El Vigia", "Tovar", "Mucuchies", "Timotes", "Bailadores", "Nueva Bolivia", "Ejido", "Valera", "Trujillo", "Bocono", "Pampan", "Carache", "Betijoque", "Sabana De Mendoza", "Escuque", "Barinas", "Sabaneta", "Socopo", "Santa Barbara De Barinas", "Barrancas"],
+    "Occidente": ["Coro", "Punto Fijo", "Tucacas", "Chichiriviche", "Dabajuro", "Churuguara", "Maracaibo", "San Francisco", "Cabimas", "Ciudad Ojeda", "Mene Grande", "Bachaquero", "Machiques", "Santa Barbara Del Zulia", "Los Puertos De Altagracia", "La Villa Del Rosario", "Casigua El Cubo", "Encontrados", "El Mojan", "Santa Rita", "Tia Juana"],
+    "Centro Occidente": ["Barquisimeto", "Cabudare", "El Tocuyo", "Carora", "Quibor", "Sanare", "Duaca", "Siquisique", "Sarare", "San Felipe", "Chivacoa", "Nirgua", "Yaritagua", "Aroa", "San Carlos", "Tinaco", "Tinaquillo", "El Pao", "Guanare", "Acarigua", "Biscucuy", "Turen", "Ospino", "Piritu (Portuguesa)"],
+    "Oriente Norte": ["Barcelona", "Puerto La Cruz", "Puerto Piritu", "El Tigre", "Anaco", "Cantaura", "San Tome", "Clarines", "Boca De Uchire", "Aragua De Barcelona", "Valle De Guanape", "Pariaguan", "Porlamar", "Pampatar", "Juan Griego", "La Asuncion", "Punta De Piedras", "Boca Del Rio", "Cumana", "Carupano", "Guiria", "Cumanacoa", "Araya", "Casanay", "Irapa", "Cariaco", "Mariguitar"],
+    "Oriente Sur": ["Maturin", "Punta De Mata", "Caripito", "Caripe", "Temblador", "Aguasay", "Caicara De Maturin", "Tucupita", "Pedernales", "Curiapo", "Puerto Ayacucho", "San Fernando De Atabapo", "San Juan De Manapiare", "Puerto Ordaz", "San Felix", "Ciudad Bolivar", "Upata", "Guasipati", "El Callao", "Tumeremo", "Santa Elena De Uairen", "Caicara Del Orinoco", "Ciudad Piar", "El Manteco", "Maripa", "Las Claritas", "El Dorado"]
+}
+
+MACRO_ZONES = {}
+for macro, cities in CATEGORIES.items():
+    for city in cities:
+        MACRO_ZONES[city] = macro
+
+# - Routes (Sectors) UPDATE THE ZONES
+MASTER_ROUTES = [
+    {"zone": "Capital", "destination": "CARACAS", "sectors": ["LOS PALOS GRANDES", "AV BOYACA", "EL HATILLO", "LOS NARANJOS", "LA CANDELARIA", "LA FLORIDA", "SAN BERNARDINO", "CATIA", "PETARE", "AV BARALT", "LA CALIFORNIA", "LAS MERCEDES", "EL ROSAL", "CHACAO", "LOS CHORROS", "LA URBINA", "DOS CAMINOS", "CHACAITO", "EL CAFETAL", "SANTA MONICA", "SAN MARTIN", "MONTALBAN", "BELLO MONTE", "EL VALLE", "CARACAS", "LOS RUICES", "BOLEITA"]},
+    {"zone": "Capital", "destination": "LA GUAIRA", "sectors": ["LA GUAIRA", "MAIQUETIA", "CATIA LA MAR", "CARIBE", "NAIGUATA", "CARABALLEDA", "CARAYACA"]},
+    {"zone": "Capital", "destination": "MIRANDA ALTOS", "sectors": ["LOS TEQUES", "SAN ANTONIO DE LOS ALTOS", "CARRIZAL"]},
+    {"zone": "Capital", "destination": "MIRANDA TUY", "sectors": ["CHARALLAVE", "CUA", "OCUMARE DEL TUY", "SANTA TERESA", "YARE"]},
+    {"zone": "Capital", "destination": "MIRANDA BARLOVENTO", "sectors": ["HIGUEROTE", "RIO CHICO", "CAUCAGUA"]},
+    {"zone": "Centro", "destination": "CARABOBO", "sectors": ["GUACARA", "SAN DIEGO", "ISABELICA", "MARIARA", "VALENCIA", "VALENCIA CENTRO", "AV BOLIVAR", "LOS GUAYOS", "PARAPARAL", "LAS AGUITAS", "TOCUYITO", "ZONA SUR"]},
+    {"zone": "Centro", "destination": "CARABOBO OCCIDENTE", "sectors": ["BEJUMA", "MONTALBAN", "MIRANDA"]},
+    {"zone": "Centro", "destination": "EJE COSTERO CENTRO", "sectors": ["PUERTO CABELLO", "PTO CABELLO", "MORON"]},
+    {"zone": "Centro", "destination": "MARACAY", "sectors": ["CAGUA", "STA RITA", "TURMERO", "LA VICTORIA", "SAN MATEO", "PALO NEGRO", "SANTA CRUZ", "LAS DELICIAS", "EL LIMON", "MARACAY", "CENTRO", "PIÑONAL"]},
+    {"zone": "Centro", "destination": "ARAGUA SUR", "sectors": ["SAN CASIMIRO", "SAN SEBASTIAN", "BARBACOAS"]},
+    {"zone": "Centro", "destination": "ARAGUA COSTA", "sectors": ["CHORONI", "OCUMARE DE LA COSTA"]},
+    {"zone": "Centro", "destination": "GUARICO NORTE", "sectors": ["SAN JUAN", "SAN JUAN DE LOS MORROS", "ORTIZ", "EL SOMBRERO", "ALTAGRACIA DE ORITUCO"]},
+    {"zone": "Centro", "destination": "GUARICO SUR", "sectors": ["VALLE DE LA PASCUA", "ZARAZA", "CALABOZO", "CHAGUARAMAS", "TUCUPIDO", "CAMAGUAN"]},
+    {"zone": "Centro", "destination": "APURE", "sectors": ["SAN FERNANDO", "SAN FERNANDO DE APURE", "ACHAGUAS", "ELORZA", "MANTECAL", "BRUZUAL", "GUASDUALITO"]},
+    {"zone": "Andes", "destination": "TACHIRA CENTRO", "sectors": ["SAN CRISTOBAL", "TARIBA", "RUBIO", "MICHELENA"]},
+    {"zone": "Andes", "destination": "TACHIRA FRONTERA", "sectors": ["SAN ANTONIO DEL TACHIRA", "UREÑA", "LA FRIA", "COLONCITO", "SAN JUAN DE COLON", "LA GRITA"]},
+    {"zone": "Andes", "destination": "TRUJILLO", "sectors": ["TRUJILLO", "VALERA", "BOCONO", "PAMPAN", "CARACHE", "BETIJOQUE", "SABANA DE MENDOZA", "ESCUQUE"]},
+    {"zone": "Andes", "destination": "MERIDA CENTRO", "sectors": ["MERIDA", "EJIDO", "MUCUCHIES", "TIMOTES"]},
+    {"zone": "Andes", "destination": "MERIDA PANAMERICANA", "sectors": ["EL VIGIA", "TOVAR", "BAILADORES", "NUEVA BOLIVIA"]},
+    {"zone": "Andes", "destination": "BARINAS", "sectors": ["SAN JOSE", "BARINAS", "SABANETA", "SOCOPO", "SANTA BARBARA DE BARINAS", "BARRANCAS"]},
+    {"zone": "Occidente", "destination": "FALCON", "sectors": ["CORO", "PTO FIJO", "PUNTO FIJO", "PENINSULA", "SANTA ANA DE CORO", "DABAJURO", "CHURUGUARA", "TUCACAS", "CHICHIRIVICHE"]},
+    {"zone": "Occidente", "destination": "ZULIA NORTE", "sectors": ["MARACAIBO", "SAN FRANCISCO", "LA CONCEPCION", "EL MOJAN"]},
+    {"zone": "Occidente", "destination": "ZULIA COL", "sectors": ["CABIMAS", "CIUDAD OJEDA", "MENE GRANDE", "BACHAQUERO", "LOS PUERTOS DE ALTAGRACIA", "SANTA RITA", "TIA JUANA"]},
+    {"zone": "Occidente", "destination": "ZULIA PERIJA", "sectors": ["MACHIQUES", "ROSARIO", "LA VILLA DEL ROSARIO"]},
+    {"zone": "Occidente", "destination": "ZULIA SUR", "sectors": ["SANTA BARBARA", "SANTA BARBARA DEL ZULIA", "CASIGUA EL CUBO", "ENCONTRADOS"]},
+    {"zone": "Centro Occidente", "destination": "LARA", "sectors": ["BARQUISIMETO", "CABUDARE", "SARARE"]},
+    {"zone": "Centro Occidente", "destination": "LARA FORANEO", "sectors": ["CARORA", "EL TOCUYO", "QUIBOR", "SANARE", "DUACA", "SIQUISIQUE"]},
+    {"zone": "Centro Occidente", "destination": "YARACUY", "sectors": ["SAN FELIPE", "CHIVACOA", "NIRGUA", "YARITAGUA", "AROA"]},
+    {"zone": "Centro Occidente", "destination": "COJEDES", "sectors": ["SAN CARLOS", "TINAQUILLO", "TINACO", "EL PAO"]},
+    {"zone": "Centro Occidente", "destination": "PORTUGUESA", "sectors": ["ACARIGUA", "ARAURE", "GUANARE", "TUREN", "OSPINO", "PIRITU (PORTUGUESA)", "BISCUCUY"]},
+    {"zone": "Oriente Norte", "destination": "ANZOATEGUI NORTE", "sectors": ["BARCELONA", "LECHERIA", "PTO LA CRUZ", "PUERTO LA CRUZ", "PIRITU", "PUERTO PIRITU", "CLARINES", "BOCA DE UCHIRE", "VALLE DE GUANAPE"]},
+    {"zone": "Oriente Norte", "destination": "ANZOATEGUI SUR", "sectors": ["ANACO", "EL TIGRE", "CANTAURA", "SAN TOME", "PARIAGUAN"]},
+    {"zone": "Oriente Norte", "destination": "SUCRE", "sectors": ["CARUPANO", "CUMANA", "GUIRIA", "CUMANACOA", "ARAYA", "CASANAY", "IRAPA", "CARIACO", "MARIGUITAR"]},
+    {"zone": "Oriente Norte", "destination": "NUEVA ESPARTA", "sectors": ["PORLAMAR", "PAMPATAR", "JUAN GRIEGO", "LA ASUNCION", "PUNTA DE PIEDRAS", "BOCA DEL RIO"]},
+    {"zone": "Oriente Norte", "destination": "TRANSICION_ESTE", "sectors": ["GUARENAS", "GUATIRE"]},
+    {"zone": "Oriente Sur", "destination": "MONAGAS", "sectors": ["MATURIN", "PUNTA DE MATA", "CARIPITO", "CARIPE", "TEMBLADOR", "AGUASAY", "CAICARA DE MATURIN"]},
+    {"zone": "Oriente Sur", "destination": "DELTA AMACURO", "sectors": ["TUCUPITA", "PEDERNALES", "CURIAPO"]},
+    {"zone": "Oriente Sur", "destination": "AMAZONAS", "sectors": ["PUERTO AYACUCHO", "SAN FERNANDO DE ATABAPO", "SAN JUAN DE MANAPIARE"]},
+    {"zone": "Oriente Sur", "destination": "BOLIVAR NORTE", "sectors": ["SAN FELIX", "CIUDAD BOLIVAR", "EL ROSARIO", "CIUDAD GUAYANA", "UPATA", "PUERTO ORDAZ", "CIUDAD PIAR"]},
+    {"zone": "Oriente Sur", "destination": "BOLIVAR SUR", "sectors": ["EL CALLAO", "TUMEREMO", "SANTA ELENA DE UAIREN", "LAS CLARITAS", "EL DORADO", "GUASIPATI", "EL MANTECO"]},
+    {"zone": "Oriente Sur", "destination": "BOLIVAR OCCIDENTE", "sectors": ["CAICARA DEL ORINOCO", "MARIPA"]}
+]
+
+def obtain_consolidated_route(zone_city):
+    zone_clean = zone_city.upper().strip()
+    
+    # Search for Sector
+    for route in MASTER_ROUTES:
+        for sector in route["sectors"]:
+            if sector in zone_clean:
+                return f"{route['destination']} ({' / '.join(route['sectors'][:3])}...)"
+                
+    # - Backup for General Destination
+    for route in MASTER_ROUTES:
+        if route["destination"] in zone_clean:
+            return f"{route['destination']} General"
+            
+    return f"Special Route ({zone_city})"
+
+
+def calculate_distance(c1, c2):
+    c1, c2 = c1.title(), c2.title()
+    p1 = COORDINATES_MAP.get(c1, (0, 0))
+    p2 = COORDINATES_MAP.get(c2, (0, 0))
+    
+    distance = math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+    
+    critical_routes = [
+        {"nodes": {"Maracaibo", "Puerto Cabello"}, "multiplicator": 3.0}, 
+        {"nodes": {"Maracaibo", "Valencia"}, "multiplicator": 2.8},        
+        {"nodes": {"Maracaibo", "Caracas"}, "multiplicator": 3.5},        
+        {"nodes": {"San Cristobal", "Caracas"}, "multiplicator": 3.8},
+        {"nodes": {"Santa Elena De Uairen", "Maracaibo"}, "multiplicator": 5.0},
+        {"nodes": {"Porlamar", "Valencia"}, "multiplicator": 4.5} # Ferry penalty
+    ]
+    
+    actual_route = {c1, c2}
+    for route in critical_routes:
+        if actual_route == route["nodes"]:
+            return distance * route["multiplicator"]
+            
+    factors = {
+        "CARACAS_TRAFFIC": 1.3,
+        "INTER_EJE_LARGE": 1.5,
+        "Capital": 1.25,
+        "Centro": 1.0,      
+        "Andes": 1.4,       
+        "Occidente": 1.2,
+        "Centro Occidente": 1.1,
+        "Oriente Norte": 1.2,
+        "Oriente Sur": 1.35        
+    }
+    
+    if "Caracas" in [c1, c2]:
+        distance *= factors["CARACAS_TRAFFIC"]
+        
+    eje1 = MACRO_ZONES.get(c1, "Special")
+    eje2 = MACRO_ZONES.get(c2, "Special")
+    
+    # Penalty
+    if eje1 != eje2 and eje1 != "Special" and eje2 != "Special":
+        distance *= factors["INTER_EJE_LARGE"]
+    elif eje1 in factors:
+    
+        distance *= factors[eje1]
+        
+    return distance
+    
+# DATA MANAGEMENT AND EXPORT / THIS THE LAST LINE CONTINUE HERE
+
+def initialize_db():
+    global system_data
+    if os.path.exists(DATA_FILE):
+        try:
+            with open(DATA_FILE, "r", encoding="utf-8") as f:
+                loaded = json.load(f)
+                if "fleet" in loaded and "orders" in loaded:
+                    system_data = loaded
+        except Exception:
+            pass
+    else:
+        save_db()
+
+def save_db():
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(system_data, f, indent=4)
+
+def save_report(content):
+    file_name = f"Logistics_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    
+    try:
+        with open(file_name, "w", encoding="utf-8") as f:
+            f.write(content)
+        messagebox.showinfo("Successful Export", f"The route plan was saved as:\n\n{file_name}")
+    except Exception as e:
+        messagebox.showerror("Error", f"Could not save the report: {e}")
+
+# - INTERFACE adn BUTTON FUNCTIONS
+
+def import_fleet_text():
+    # Assuming fleet_paste_box is your variable name
+    text = fleet_paste_box.get("1.0", tk.END).strip()
+    lines = text.split("\n")[1:] if "Plate" in text else text.split("\n")
+    if not lines or not text: return
+    
+    success, errors = 0, 0
+    for line in lines:
+        line = line.strip()
+        if not line: continue
+        
+        parts = [p.strip() for p in (line.split(",") if "," in line else line.split("\t"))]
+        if len(parts) >= 5:
+            try:
+                v_id = parts[0].upper()
+                v_type = parts[1]
+                
+                v_kg = float(parts[2])
+                
+                v_m3 = float(parts[3])
+                v_company = parts[4]
+
+                if any(c["id"] == v_id for c in system_data["fleet"]):
+                    continue
+
+                system_data["fleet"].append({"id": v_id, "type": v_type, "cap_kg": v_kg, "cap_m3": v_m3, "company": v_company, "status": "Available"})
+                success += 1
+            except ValueError: errors += 1
+    save_db(); refresh_fleet_ui(); fleet_paste_box.delete("1.0", tk.END)
+    messagebox.showinfo("Fleet Import", f"Units registered: {success} | Errors/Duplicates: {errors}")
+
+def delete_vehicle():
+    selected = fleet_table.selection()
+    
+    if not selected: return
+        
+    message = f"Delete the {len(selected)} selected units?" if len(selected) > 1 else "Delete the selected unit?"
+    
+    if messagebox.askyesno("Confirm", message):
+    
+        v_ids = [fleet_table.item(item)["values"][0] for item in selected]
+        
+        system_data["fleet"] = [c for c in system_data["fleet"] if c["id"] not in v_ids]
+        save_db()
+        refresh_fleet_ui()
+
+def import_from_text():
+    # Assuming orders_paste_box is your variable name
+    text = orders_paste_box.get("1.0", tk.END).strip()
+    
+    lines = text.split("\n")[1:] if "Client" in text else text.split("\n")
+    if not lines or not text: return
+    
+    success, errors = 0, 0
+    for line in lines:
+        line = line.strip()
+        if not line: continue
+        
+        parts = [p.strip() for p in (line.split(",") if "," in line else line.split("\t"))]
+        if len(parts) >= 3:
+            try:
+                weight = float(parts[2])
+                vol = float(parts[3]) if len(parts) >= 4 else round(weight * 0.0015, 2)
+                
+                zone_input = parts[1].title()
+                if zone_input not in COORDINATES_MAP:
+                    messagebox.showwarning("Unknown Zone", f"The city '{zone_input}' is not registered on the map. Check spelling.")
+                    errors += 1
+                    continue
+
+                system_data["orders"].append({"client": parts[0], "zone": zone_input, "kg": weight, "m3": vol})
+                success += 1
+            except ValueError: errors += 1
+    save_db(); refresh_orders_ui(); orders_paste_box.delete("1.0", tk.END)
+    messagebox.showinfo("Orders Import", f"Processed: {success} | Errors or Unknowns: {errors}")
+    
+# -- DATA MANAGEMENT
+
+def clear_data():
+    if messagebox.askyesno("Confirm", "Empty the dispatch queue?"):
+        system_data["orders"].clear()
+        save_db()
+        refresh_orders_ui()
+        kpi_viewer.delete("1.0", tk.END)
+
+def refresh_orders_ui():
+    for i in orders_table.get_children():
+        orders_table.delete(i)
+    for p in system_data["orders"]:
+        orders_table.insert("", "end", values=(p["client"], p["zone"], f"{p['kg']} kg", f"{p['m3']} m³"))
+
+def refresh_fleet_ui():
+    for i in fleet_table.get_children():
+    
+        fleet_table.delete(i)
+    for c in system_data["fleet"]:
+        fleet_table.insert("", "end", values=(c["id"], c["type"], f"{c['cap_kg']} kg", f"{c['cap_m3']} m³", c["company"]))
+
+# - ROUTING 
+
+def process_logistic_plan():
+    selected_origin = origin_combo.get()
+    if not system_data["orders"]:
+        return messagebox.showwarning("Notice", "There are no orders.")
+    
+    # GROUPING BY MACRO-ZONE
+    corridor_groups = {}
+    for p in system_data["orders"]:
+        zone = p["zone"].title()
+        corridor = MACRO_ZONES.get(zone, f"Special Route ({zone})")
+        if corridor not in corridor_groups:
+            corridor_groups[corridor] = []
+        corridor_groups[corridor].append(p)
+        
+    trucks = [v for v in system_data["fleet"] if v["status"] == "available"]
+    random.shuffle(trucks) 
+    
+    kpi_viewer.delete("1.0", tk.END)
+    output_text = f"=== DYNAMIC ROUTE PLAN | ORIGIN: {selected_origin.upper()} ===\n"
+    output_text += f"GENERATION DATE: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    
+    for corridor, corridor_orders in corridor_groups.items():
+        output_text += f"🛣️ MACRO-ZONE: {corridor.upper()} | Total Clients: {len(corridor_orders)}\n"
+        output_text += "-"*75 + "\n"
+        
+        #.UB-GROUPING BASED ON ROUTE MASTER
+        planned_sub_routes = {}
+        for order in corridor_orders:
+            exact_route = obtain_consolidated_route(order["zone"])
+            if exact_route not in planned_sub_routes:
+                planned_sub_routes[exact_route] = []
+            planned_sub_routes[exact_route].append(order)
+
+        for route_name, order_list in planned_sub_routes.items():
+            output_text += f"    ➔ Designated Corridor: {route_name}\n"
+            
+            attempts = 0
+            using_virtual_fleet = False
+            
+            order_list.sort(key=lambda x: calculate_distance(selected_origin, x["zone"]))
+            
+            while order_list:
+                if not trucks and not using_virtual_fleet:
+                    using_virtual_fleet = True
+                    
+                if using_virtual_fleet:
+                    total_kg = sum(p["kg"] for p in order_list)
+                    total_m3 = sum(p["m3"] for p in order_list)
+                    
+                    templates = [
+                        {"type": "Pick-up 150", "cap_kg": 1500, "cap_m3": 4.0},
+                        {"type": "Triton 350", "cap_kg": 3500, "cap_m3": 12.0},
+                        {"type": "Camión 750", "cap_kg": 7500, "cap_m3": 25.0},
+                        {"type": "Gandola", "cap_kg": 24000, "cap_m3": 60.0}
+                    ]
+                    
+                    ideal_truck = templates[-1]
+                    for t in templates:
+                        if t["cap_kg"] >= total_kg and t["cap_m3"] >= total_m3:
+                            ideal_truck = t
+                            break
+                            
+                    if order_list[0]["kg"] > ideal_truck["cap_kg"] or order_list[0]["m3"] > ideal_truck["cap_m3"]:
+                        ideal_truck = {
+                            "type": "Special Cargo Vehicle",
+                            "cap_kg": order_list[0]["kg"] * 1.1,
+                            "cap_m3": order_list[0]["m3"] * 1.1
+                        }
+
+                    truck = {
+                        "id": "REQUIRED",
+                        "type": ideal_truck["type"],
+                        "cap_kg": ideal_truck["cap_kg"],
+                        "cap_m3": ideal_truck["cap_m3"],
+                        "company": "⚠️ NEEDS SUBCONTRACTING"
+                    }
+                else:
+                    truck = trucks.pop(0)
+
+                rem_kg, rem_m3 = truck["cap_kg"], truck["cap_m3"]
+                stops, remaining_list = [], []
+                loaded_kg = 0
+                
+                for order in order_list:
+                    if order["kg"] <= rem_kg and order["m3"] <= rem_m3:
+                        rem_kg -= order["kg"]
+                        rem_m3 -= order["m3"]
+                        loaded_kg += order["kg"]
+                        stops.append(order)
+                    else: 
+                        remaining_list.append(order)
+                
+                if stops:
+                    optimized_route = []
+                    current_location = selected_origin
+                    pending = list(stops)
+                    total_distance = 0
+                    
+                    while pending:
+                        next_stop = min(pending, key=lambda x: calculate_distance(current_location, x["zone"]))
+                        optimized_route.append(next_stop)
+                        total_distance += calculate_distance(current_location, next_stop["zone"])
+                        pending.remove(next_stop)
+                        current_location = next_stop["zone"]
+                    
+                    efficiency_ratio = (loaded_kg / truck["cap_kg"]) * 100
+                    
+                    if using_virtual_fleet:
+                        output_text += f"      🆘 SUGGESTED ADDITIONAL VEHICLE: {truck['type']}\n"
+                        output_text += f"      🏢 Company: {truck['company']}\n"
+                    else:
+                        output_text += f"      🚍 VEHICLE: {truck['type']} [{truck['id']}] | Company: {truck['company']}\n"
+                        
+                    output_text += f"      📊 Load Efficiency: {loaded_kg}kg / {truck['cap_kg']}kg ({efficiency_ratio:.1f}%)\n"
+                    
+                    for idx, p in enumerate(optimized_route, 1):
+                        output_text += f"         ➔ Stop {idx}: {p['zone']} | {p['client']} ({p['kg']}kg)\n"
+                    output_text += f"      🏁 Route Cost (Weighted Dist.): {int(total_distance)}\n\n"
+                    attempts = 0
+                else:
+                    if not using_virtual_fleet:
+                        trucks.append(truck)
+                        attempts += 1
+                        if attempts >= len(trucks):
+                            output_text += f"      ⚠️ WARNING: Current fleet cannot support the {order_list[0]['client']} order. Calculating subcontracting option...\n\n"
+                            using_virtual_fleet = True
+                    else:
+                        output_text += f"      ❌ CRITICAL ERROR: Unable to assign {order_list[0]['client']} (Check dimensions).\n\n"
+                        remaining_list.pop(0)
+
+                order_list = remaining_list
+        output_text += "="*75 + "\n\n"
+        
+    kpi_viewer.insert(tk.END, output_text)
+    
+    if messagebox.askyesno("Export Plan", "Do you want to export this route plan to a .txt file?"):
+        save_report(output_text)
+
+# gui
+
+
+initialize_db()
+
+app = tk.Tk()
+app.title("Intelligent Routing System - National Extended")
+app.geometry("1150x680")
+app.configure(bg="#f4f6f7")
+
+style = ttk.Style(); style.theme_use("clam")
+
+# - LEFT PANEL is to watch the panel for the information
+
+
+left_frame = tk.Frame(app, padx=10, pady=10, bg="#f4f6f7", width=450)
+left_frame.pack(side=tk.LEFT, fill=tk.Y)
+left_frame.pack_propagate(False)
+
+notebook = ttk.Notebook(left_frame)
+notebook.pack(fill=tk.BOTH, expand=True)
+
+# ORDERS be caurful modify this lines
+tab_orders = tk.Frame(notebook, bg="#f4f6f7", padx=10, pady=10)
+notebook.add(tab_orders, text=" 📦 Orders ")
+tk.Label(tab_orders, text="Paste Bulk Load (Excel/Text)", bg="#f4f6f7", font=("Arial", 9, "bold")).pack(anchor="w")
+orders_paste_box = tk.Text(tab_orders, height=5, font=("Consolas", 9))
+orders_paste_box.insert("1.0", "Client, Zone, Weight, Volume\n...")
+orders_paste_box.pack(fill=tk.X, pady=5)
+tk.Button(tab_orders, text="⬇️ IMPORT ORDERS", bg="#2980b9", fg="white", font=("Arial", 9, "bold"), command=import_from_text).pack(fill=tk.X, pady=5)
+orders_table = ttk.Treeview(tab_orders, columns=("C", "Z", "P", "V"), show="headings", height=12)
+for col, text, width in [("C", "Client", 130), ("Z", "Zone", 100), ("P", "Kg", 70), ("V", "m³", 60)]:
+    orders_table.heading(col, text=text); orders_table.column(col, width=width)
+orders_table.pack(fill=tk.BOTH, expand=True)
+tk.Button(tab_orders, text="Clear Daily Load", command=clear_data, bg="#d98880").pack(fill=tk.X, pady=5)
+
+# : inform,ation dont delete 
+tab_fleet = tk.Frame(notebook, bg="#f4f6f7", padx=10, pady=10)
+
+notebook.add(tab_fleet, text=" 🚛 Fleet ")
+fleet_paste_box = tk.Text(tab_fleet, height=5, font=("Consolas", 9))
+
+fleet_paste_box.insert("1.0", "ID, Type, Cap_Kg, Cap_m3, Company\n...")
+fleet_paste_box.pack(fill=tk.X, pady=5)
+tk.Button(tab_fleet, text="⬇️ IMPORT FLEET", bg="#27ae60", fg="white", font=("Arial", 9, "bold"), command=import_fleet_text).pack(fill=tk.X, pady=5)
+fleet_table = ttk.Treeview(tab_fleet, columns=("ID", "T", "KG", "M3", "E"), show="headings", height=12)
+for col, text, width in [("ID", "ID", 60), ("T", "Type", 80), ("KG", "Cap Kg", 60), ("M3", "Cap m³", 50), ("E", "Company", 130)]:
+    fleet_table.heading(col, text=text); fleet_table.column(col, width=width)
+fleet_table.pack(fill=tk.BOTH, expand=True)
+tk.Button(tab_fleet, text="🗑️ Delete Selected Unit", bg="#c0392b", fg="white", command=delete_vehicle).pack(fill=tk.X, pady=5)
+
+
+tab_routes = tk.Frame(notebook, bg="#f4f6f7", padx=10, pady=10)
+notebook.add(tab_routes, text=" 🗺️ Road Intelligence ")
+info_text = (
+    "NATIONAL WEIGHTED ROUTING SYSTEM:\n\n"
+    "1. Assignment Equity:\n"
+    "   The system shuffles the available vehicle list.\n\n"
+    "2. Proximity Efficiency:\n"
+    "   Trucks group clients from the same macro-zone,\n"
+    "   filling the space with the closest ones first.\n\n"
+    "3. Penalized Critical Routes:\n"
+    "   No axis mixing. An Eastern truck will not\n"
+    "   take clients from the Andes."
+)
+tk.Label(tab_routes, text=info_text, justify=tk.LEFT, bg="white", font=("Consolas", 9), relief=tk.SOLID, bd=1, padx=10, pady=10).pack(fill=tk.BOTH, expand=True)
+
+# -LOWER CONTROLS
+control_frame = tk.Frame(left_frame, pady=10, bg="#f4f6f7")
+control_frame.pack(fill=tk.X)
+tk.Label(control_frame, text="🏢 Base (Origin):", bg="#f4f6f7", font=("Arial", 9, "bold")).pack(anchor="w")
+origin_combo = ttk.Combobox(control_frame, values=sorted(list(COORDINATES_MAP.keys())), state="readonly")
+origin_combo.set("Valencia") 
+ # To create  the route and export
+origin_combo.pack(fill=tk.X, pady=(0, 10))
+tk.Button(control_frame, text="🚀 CALCULATE ROUTE & EXPORT", bg="#2e4053", fg="white", font=("Arial", 10, "bold"), pady=8, command=process_logistic_plan).pack(fill=tk.X)
+
+
+right_frame = tk.Frame(app, padx=10, pady=10, bg="#f4f6f7")
+
+right_frame.pack(side=tk.RIGHT, expand=True, fill=tk.BOTH)
+
+tk.Label(right_frame, text="Optimization Console and KPIs", bg="#f4f6f7", font=("Arial", 11, "bold")).pack(anchor="w", pady=(0, 5))
+kpi_viewer = tk.Text(right_frame, font=("Consolas", 10), bg="#1c2833", fg="#ecf0f1", padx=15, pady=15)
+kpi_viewer.pack(expand=True, fill=tk.BOTH)
+
+refresh_orders_ui(); refresh_fleet_ui()
+
+app.mainloop()
